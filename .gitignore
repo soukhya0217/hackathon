@@ -3,4 +3,10 @@ __pycache__/
 *.pyc
 .env
 .streamlit/secrets.toml
-text.txt
+
+# Local uploads and FAISS index (keep directory placeholders)
+data/uploads/*
+data/vectorstore/*
+data/*.db
+!data/uploads/.gitkeep
+!data/vectorstore/.gitkeep

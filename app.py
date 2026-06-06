@@ -3,16 +3,19 @@ from pathlib import Path
 
 import streamlit as st
 
+import memory
 from rag_backend import (
     UPLOAD_DIR,
-    build_vectorstore,
-    generate_rag_answer,
-    load_documents,
-    load_vectorstore,
-    retrieve_context,
+    answer_question,
+    build_knowledge_base,
+    delete_uploaded_file,
+    get_indexed_chunk_count,
+    get_upload_manifest,
     save_uploaded_files,
-    split_documents,
+    vectorstore_exists,
+    vectorstore_index_mtime,
 )
+from rag_backend import load_vectorstore as _load_vectorstore
 
 st.set_page_config(
     page_title="RAG Assistant",
@@ -34,7 +37,24 @@ COLORS = {
 }
 
 
+@st.cache_resource
+def get_cached_vectorstore(index_mtime: float):
+    if index_mtime <= 0:
+        return None
+    return _load_vectorstore()
+
+
+def get_vectorstore():
+    return get_cached_vectorstore(vectorstore_index_mtime())
+
+
+def invalidate_vectorstore_cache():
+    get_cached_vectorstore.clear()
+
+
 def init_state():
+    memory.init_db()
+
     defaults = {
         "messages": [],
         "documents": [],
@@ -42,16 +62,20 @@ def init_state():
         "chunk_count": 0,
         "kb_indexed": False,
         "is_generating": False,
+        "session_id": memory.new_session_id(),
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
-    if not st.session_state.kb_indexed:
-        vectorstore = load_vectorstore()
-        if vectorstore is not None:
-            st.session_state.kb_indexed = True
-            st.session_state.chunk_count = vectorstore.index.ntotal
+    if not st.session_state.messages:
+        st.session_state.messages = memory.get_messages(st.session_state.session_id)
+        if st.session_state.messages:
+            st.session_state.show_welcome = False
+
+    if vectorstore_exists():
+        st.session_state.kb_indexed = True
+        st.session_state.chunk_count = get_indexed_chunk_count()
 
     sync_documents_from_disk()
 
@@ -64,7 +88,7 @@ def sync_documents_from_disk():
     st.session_state.documents = [
         {"name": f.name, "size": f.stat().st_size}
         for f in sorted(UPLOAD_DIR.iterdir())
-        if f.is_file()
+        if f.is_file() and not f.name.startswith(".")
     ]
 
 
@@ -72,14 +96,8 @@ def doc_count() -> int:
     return len(st.session_state.documents)
 
 
-def chunk_count() -> int:
-    return st.session_state.chunk_count
-
-
 def kb_active() -> bool:
-    if st.session_state.kb_indexed:
-        return True
-    return load_vectorstore() is not None
+    return st.session_state.kb_indexed and vectorstore_exists()
 
 
 def inject_styles():
@@ -236,27 +254,14 @@ def inject_styles():
     )
 
 
-def _chunks_to_sources(context_chunks) -> list[dict]:
-    sources = []
-    for chunk in context_chunks:
-        excerpt = chunk.page_content.strip().replace("\n", " ")
-        if len(excerpt) > 280:
-            excerpt = excerpt[:280] + "…"
-        sources.append(
-            {
-                "source": chunk.metadata.get("source", "unknown"),
-                "page": chunk.metadata.get("page"),
-                "excerpt": excerpt,
-            }
-        )
-    return sources
-
-
 def render_source_citations(sources: list[dict]):
     if not sources:
         return
 
-    with st.expander(f"📎 {len(sources)} source passage{'s' if len(sources) != 1 else ''} from your documents", expanded=False):
+    with st.expander(
+        f"📎 {len(sources)} source passage{'s' if len(sources) != 1 else ''} from your documents",
+        expanded=False,
+    ):
         for i, source in enumerate(sources, start=1):
             filename = html.escape(Path(source.get("source", "unknown")).name)
             page = source.get("page")
@@ -273,29 +278,13 @@ def render_source_citations(sources: list[dict]):
             )
 
 
-def _answer_indicates_no_info(reply: str) -> bool:
-    lower = reply.lower()
-    decline_phrases = (
-        "could not find",
-        "cannot find",
-        "can't find",
-        "do not have information",
-        "don't have information",
-        "not find this information",
-        "not contain enough",
-        "no relevant passages",
-        "i could not find this",
-    )
-    return any(phrase in lower for phrase in decline_phrases)
-
-
 def render_messages():
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             if msg["role"] == "assistant" and msg.get("grounded") and msg.get("sources"):
                 st.markdown(
-                    '<p class="grounded-note">Synthesized from retrieved PDF passages — expand sources to see exact excerpts.</p>',
+                    '<p class="grounded-note">Synthesized from retrieved document passages — expand sources to see exact excerpts.</p>',
                     unsafe_allow_html=True,
                 )
                 render_source_citations(msg["sources"])
@@ -319,41 +308,58 @@ def generate_pending_answer():
                 status.update(label="Knowledge base not ready", state="error")
             else:
                 try:
-                    status.write("🔍 Searching knowledge base for relevant passages…")
-                    vectorstore = load_vectorstore()
-                    context_chunks = retrieve_context(query, vectorstore)
+                    status.write("🔍 Searching knowledge base and generating answer…")
+                    vectorstore = get_vectorstore()
+                    chat_history = [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages[:-1]
+                    ]
+                    if chat_history:
+                        status.write(f"🧠 Using {len(chat_history)} prior message(s) for context")
+                    rag_result = answer_question(
+                        query,
+                        vectorstore=vectorstore,
+                        chat_history=chat_history,
+                    )
 
-                    if not context_chunks:
+                    if rag_result.get("no_index"):
                         result = {
-                            "content": "I could not find relevant passages in your uploaded documents for this question.",
+                            "content": rag_result["answer"],
+                            "sources": [],
+                            "grounded": False,
+                        }
+                        status.update(label="Knowledge base not ready", state="error")
+                    elif not rag_result["context_chunks"]:
+                        result = {
+                            "content": rag_result["answer"],
                             "sources": [],
                             "grounded": False,
                         }
                         status.update(label="No matching passages", state="complete")
+                    elif not rag_result["grounded"]:
+                        result = {
+                            "content": rag_result["answer"],
+                            "sources": [],
+                            "grounded": False,
+                        }
+                        status.update(label="No relevant information found", state="complete")
                     else:
-                        status.write(f"📄 Found {len(context_chunks)} matching passage(s)")
-                        status.write("✨ Generating grounded answer…")
-                        reply = generate_rag_answer(query, context_chunks)
-
-                        if _answer_indicates_no_info(reply):
-                            result = {
-                                "content": reply,
-                                "sources": [],
-                                "grounded": False,
-                            }
-                            status.update(label="No relevant information found", state="complete")
-                        else:
-                            result = {
-                                "content": reply,
-                                "sources": _chunks_to_sources(context_chunks),
-                                "grounded": True,
-                            }
-                            status.update(label="Answer ready", state="complete")
+                        status.write(f"📄 Used {len(rag_result['context_chunks'])} matching passage(s)")
+                        result = {
+                            "content": rag_result["answer"],
+                            "sources": rag_result["sources"],
+                            "grounded": True,
+                        }
+                        status.update(label="Answer ready", state="complete")
                 except ValueError as exc:
                     result = {"content": str(exc), "sources": [], "grounded": False}
                     status.update(label="Configuration error", state="error")
                 except Exception as exc:
-                    result = {"content": f"Failed to generate answer: {exc}", "sources": [], "grounded": False}
+                    result = {
+                        "content": f"Failed to generate answer: {exc}",
+                        "sources": [],
+                        "grounded": False,
+                    }
                     status.update(label="Error", state="error")
 
     st.session_state.messages.append(
@@ -364,53 +370,62 @@ def generate_pending_answer():
             "grounded": result.get("grounded", False),
         }
     )
+    memory.add_message(st.session_state.session_id, "assistant", result["content"])
     st.session_state.is_generating = False
 
 
-def build_knowledge_base():
+def run_build_knowledge_base():
     with st.status("Building knowledge base…", expanded=True) as status:
         status.write("📂 Loading uploaded files…")
-        documents = load_documents()
-        if not documents:
-            st.session_state.build_kb_message = ("error", "Upload at least one document first.")
-            status.update(label="No documents found", state="error")
+        result = build_knowledge_base()
+
+        for warning in result.get("warnings", []):
+            status.write(f"⚠️ {warning}")
+
+        if not result["ok"]:
+            st.session_state.build_kb_message = ("error", result.get("error", "Indexing failed."))
+            status.update(label="Indexing failed", state="error")
             return
 
-        status.write(f"✂️ Splitting {len(documents)} document(s) into chunks…")
-        chunks = split_documents(documents)
-
-        status.write(f"🧠 Embedding {len(chunks)} chunks (this may take a minute)…")
-        build_vectorstore(chunks, force_rebuild=True)
+        if result.get("skipped_rebuild"):
+            status.write("✅ Index is already up to date — skipped rebuild.")
+        elif result.get("incremental"):
+            status.write(f"➕ Added new file(s) to existing index ({result['chunk_count']} chunks total).")
+        else:
+            status.write(f"✂️ Indexed {result['document_count']} file(s) into {result['chunk_count']} chunks.")
+            status.write("🧠 Embeddings complete.")
 
         status.update(label="Knowledge base ready", state="complete")
 
-    st.session_state.chunk_count = len(chunks)
+    invalidate_vectorstore_cache()
+    st.session_state.chunk_count = result["chunk_count"]
     st.session_state.kb_indexed = True
-    st.session_state.build_kb_message = (
-        "success",
-        f"Indexed {doc_count()} file(s) · {len(chunks)} chunks.",
-    )
+
+    if result.get("skipped_rebuild"):
+        msg = f"Index up to date · {result['chunk_count']} chunks."
+    elif result.get("incremental"):
+        msg = f"Added new file(s) · {result['chunk_count']} chunks total."
+    else:
+        msg = f"Indexed {doc_count()} file(s) · {result['chunk_count']} chunks."
+
+    st.session_state.build_kb_message = ("success", msg)
 
 
 def _uploads_changed(uploaded_files) -> bool:
-    on_disk = {}
-    if UPLOAD_DIR.exists():
-        on_disk = {
-            f.name: f.stat().st_size
-            for f in UPLOAD_DIR.iterdir()
-            if f.is_file()
-        }
+    on_disk = get_upload_manifest()
+    uploaded_meta = {f.name: {"size": f.size, "mtime_ns": 0} for f in uploaded_files}
+    on_disk_sizes = {name: meta["size"] for name, meta in on_disk.items()}
 
-    uploaded_meta = {f.name: f.size for f in uploaded_files}
-    if set(uploaded_meta) != set(on_disk):
+    if set(uploaded_meta) != set(on_disk_sizes):
         return True
-    return any(uploaded_meta[name] != on_disk[name] for name in uploaded_meta)
+    return any(uploaded_meta[name]["size"] != on_disk_sizes[name] for name in uploaded_meta)
 
 
 def process_uploads(uploaded_files):
     if uploaded_files:
         if _uploads_changed(uploaded_files):
             save_uploaded_files(uploaded_files)
+            invalidate_vectorstore_cache()
             st.session_state.kb_indexed = False
             st.session_state.chunk_count = 0
             st.session_state.upload_notice = "New files saved — click **Build Knowledge Base** to index them."
@@ -419,6 +434,15 @@ def process_uploads(uploaded_files):
 
     sync_documents_from_disk()
     st.session_state.show_welcome = len(st.session_state.messages) == 0
+
+
+def remove_document(filename: str):
+    if delete_uploaded_file(filename):
+        invalidate_vectorstore_cache()
+        st.session_state.kb_indexed = False
+        st.session_state.chunk_count = 0
+        sync_documents_from_disk()
+        st.session_state.upload_notice = f"Removed **{filename}** — rebuild the knowledge base to update search."
 
 
 # ---------------------------------------------------------------------------
@@ -442,11 +466,12 @@ with st.sidebar:
         st.info(st.session_state.upload_notice)
         del st.session_state.upload_notice
 
-    status = "Ready" if kb_active() else "Not indexed"
-    st.caption(f"{doc_count()} documents · {status}")
+    status_label = "Ready" if kb_active() else "Not indexed"
+    st.caption(f"{doc_count()} documents · {st.session_state.chunk_count} chunks · {status_label}")
+    st.caption("🧠 Memory enabled · SQLite session history")
 
     if st.button("Build Knowledge Base", key="build_kb", use_container_width=True, type="primary"):
-        build_knowledge_base()
+        run_build_knowledge_base()
         st.rerun()
 
     if "build_kb_message" in st.session_state:
@@ -460,11 +485,21 @@ with st.sidebar:
     if st.session_state.documents:
         st.markdown("**Files**")
         for doc in st.session_state.documents:
-            st.markdown(f'<div class="sidebar-doc">📄 {html.escape(doc["name"])}</div>', unsafe_allow_html=True)
+            col_name, col_btn = st.columns([4, 1])
+            with col_name:
+                st.markdown(
+                    f'<div class="sidebar-doc">📄 {html.escape(doc["name"])}</div>',
+                    unsafe_allow_html=True,
+                )
+            with col_btn:
+                if st.button("✕", key=f"del_{doc['name']}", help=f"Remove {doc['name']}"):
+                    remove_document(doc["name"])
+                    st.rerun()
 
     st.divider()
 
     if st.button("Clear chat", use_container_width=True):
+        memory.clear_session(st.session_state.session_id)
         st.session_state.messages = []
         st.session_state.show_welcome = True
         st.session_state.is_generating = False
@@ -489,6 +524,7 @@ if st.session_state.is_generating:
 
 if prompt := st.chat_input("Ask anything about your documents…", disabled=st.session_state.is_generating):
     st.session_state.messages.append({"role": "user", "content": prompt})
+    memory.add_message(st.session_state.session_id, "user", prompt)
     st.session_state.show_welcome = False
     st.session_state.is_generating = True
     st.rerun()

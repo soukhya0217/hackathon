@@ -7,9 +7,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------------------------
-# Design tokens (from text.txt)
-# ---------------------------------------------------------------------------
 COLORS = {
     "primary": "#003d9b",
     "primary_container": "#0052cc",
@@ -41,26 +38,10 @@ PROFILE_IMG = (
 )
 
 SUGGESTIONS = [
-    {
-        "icon": "summarize",
-        "title": "Summarize the uploaded document",
-        "desc": "Get a concise executive summary of key points and takeaways.",
-    },
-    {
-        "icon": "policy",
-        "title": "What policies are mentioned?",
-        "desc": "Extract specific compliance, HR, or operational guidelines automatically.",
-    },
-    {
-        "icon": "hail",
-        "title": "Explain the onboarding process",
-        "desc": "Understand internal workflows and employee lifecycle procedures.",
-    },
-    {
-        "icon": "target",
-        "title": "What are the key objectives?",
-        "desc": "Identify strategic goals and mission-critical targets in the data.",
-    },
+    ("summarize", "Summarize the uploaded document", "Get a concise executive summary of key points and takeaways."),
+    ("policy", "What policies are mentioned?", "Extract specific compliance, HR, or operational guidelines automatically."),
+    ("hail", "Explain the onboarding process", "Understand internal workflows and employee lifecycle procedures."),
+    ("target", "What are the key objectives?", "Identify strategic goals and mission-critical targets in the data."),
 ]
 
 NAV_TABS = ["Conversations", "Models", "Security"]
@@ -98,8 +79,6 @@ def inject_styles():
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono&display=swap" rel="stylesheet"/>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-
             html, body, [class*="css"] {{
                 font-family: 'Inter', sans-serif !important;
             }}
@@ -130,11 +109,101 @@ def inject_styles():
             }}
 
             [data-testid="stSidebar"] > div:first-child {{
-                padding: 1.5rem 1rem 1rem 1rem;
+                padding: 1.5rem 1rem 1rem;
             }}
 
-            [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{
-                margin-bottom: 0;
+            [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{
+                gap: 0.4rem !important;
+            }}
+
+            .sidebar-action {{
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.5rem;
+                border-radius: 0.5rem;
+                font-size: 14px;
+                color: {c["on_surface_variant"]};
+                cursor: pointer;
+                margin: 0.1rem 0;
+            }}
+
+            .sidebar-action:hover {{
+                background: {c["surface_container_high"]};
+            }}
+
+            .sidebar-action.danger {{
+                color: {c["error"]};
+            }}
+
+            .sidebar-action.danger:hover {{
+                background: {c["error_container"]};
+            }}
+
+            .sidebar-clear-click {{
+                margin-top: -40px !important;
+                margin-bottom: 0 !important;
+                position: relative;
+                z-index: 2;
+            }}
+
+            .sidebar-clear-click .stButton > button {{
+                height: 40px !important;
+                width: 100% !important;
+                opacity: 0 !important;
+                cursor: pointer !important;
+                border: none !important;
+                padding: 0 !important;
+            }}
+
+            [data-testid="stFileUploader"] {{
+                padding: 0;
+                margin-bottom: 1.25rem;
+            }}
+
+            [data-testid="stFileUploader"] section {{
+                padding: 0;
+            }}
+
+            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] {{
+                background: {c["primary"]};
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.75rem 1rem;
+                min-height: 44px;
+                box-shadow: 0 4px 12px rgba(9, 30, 66, 0.08);
+                cursor: pointer;
+            }}
+
+            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]::before {{
+                content: "upload_file";
+                font-family: 'Material Symbols Outlined';
+                font-size: 18px;
+                color: {c["on_primary"]};
+                margin-right: 8px;
+                vertical-align: middle;
+            }}
+
+            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]::after {{
+                content: "Document Upload";
+                color: {c["on_primary"]};
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+                vertical-align: middle;
+            }}
+
+            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] > div {{
+                display: none !important;
+            }}
+
+            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]:hover {{
+                background: {c["primary_container"]};
+            }}
+
+            [data-testid="stFileUploader"] [data-testid="stFileUploadDropzoneInstructions"],
+            [data-testid="stFileUploader"] [data-testid="stFileUploaderFileName"] {{
+                font-size: 11px;
             }}
 
             .material-symbols-outlined {{
@@ -157,118 +226,14 @@ def inject_styles():
                 50% {{ opacity: 0.4; }}
             }}
 
-            .shadow-soft {{
-                box-shadow: 0 4px 12px rgba(9, 30, 66, 0.08);
+            /* Main layout */
+            section.main .block-container {{
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+                padding-top: 0 !important;
             }}
 
-            /* Sidebar widgets */
-            [data-testid="stSidebar"] .stButton > button {{
-                width: 100%;
-                border-radius: 0.5rem;
-                font-weight: 600;
-                font-size: 12px;
-                letter-spacing: 0.05em;
-                border: none;
-                transition: all 0.15s ease;
-            }}
-
-            .upload-btn button {{
-                background: {c["primary"]} !important;
-                color: {c["on_primary"]} !important;
-                padding: 0.75rem 1.5rem !important;
-                box-shadow: 0 4px 12px rgba(9, 30, 66, 0.08);
-            }}
-
-            .upload-btn button:hover {{
-                background: {c["primary_container"]} !important;
-                color: {c["on_primary"]} !important;
-            }}
-
-            .clear-btn button {{
-                background: transparent !important;
-                color: {c["error"]} !important;
-                border: none !important;
-                text-align: left !important;
-                padding: 0.5rem !important;
-                font-weight: 400 !important;
-                font-size: 14px !important;
-                letter-spacing: normal !important;
-            }}
-
-            .clear-btn button:hover {{
-                background: {c["error_container"]} !important;
-            }}
-
-            .settings-btn button {{
-                background: transparent !important;
-                color: {c["on_surface_variant"]} !important;
-                border: none !important;
-                text-align: left !important;
-                padding: 0.5rem !important;
-                font-weight: 400 !important;
-                font-size: 14px !important;
-                letter-spacing: normal !important;
-            }}
-
-            .settings-btn button:hover {{
-                background: {c["surface_container_high"]} !important;
-            }}
-
-            [data-testid="stFileUploader"] {{
-                padding: 0;
-                margin-bottom: 1.5rem;
-            }}
-
-            [data-testid="stFileUploader"] section {{
-                padding: 0;
-            }}
-
-            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] {{
-                background: {c["primary"]};
-                border: none;
-                border-radius: 0.5rem;
-                padding: 0.75rem 1.5rem;
-                min-height: 44px;
-                box-shadow: 0 4px 12px rgba(9, 30, 66, 0.08);
-            }}
-
-            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]::before {{
-                content: "Document Upload";
-                color: {c["on_primary"]};
-                font-size: 12px;
-                font-weight: 600;
-                letter-spacing: 0.05em;
-                display: block;
-                text-align: center;
-            }}
-
-            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] > div {{
-                display: none !important;
-            }}
-
-            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]:hover {{
-                background: {c["primary_container"]};
-            }}
-
-            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] span,
-            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] small {{
-                color: {c["on_primary"]} !important;
-            }}
-
-            [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] svg {{
-                fill: {c["on_primary"]} !important;
-            }}
-
-            [data-testid="stFileUploader"] button {{
-                background: transparent !important;
-                color: {c["on_primary"]} !important;
-                border: none !important;
-                font-weight: 600 !important;
-                font-size: 12px !important;
-                letter-spacing: 0.05em !important;
-            }}
-
-            /* Main area */
             .topbar {{
                 height: 64px;
                 border-bottom: 1px solid {c["outline_variant"]};
@@ -277,7 +242,15 @@ def inject_styles():
                 align-items: center;
                 justify-content: space-between;
                 padding: 0 1.5rem;
-                margin-bottom: 0;
+                flex-shrink: 0;
+                width: 100%;
+                box-sizing: border-box;
+            }}
+
+            .topbar-left {{
+                display: flex;
+                align-items: center;
+                gap: 2rem;
             }}
 
             .topbar-title {{
@@ -285,22 +258,38 @@ def inject_styles():
                 font-weight: 800;
                 color: {c["on_surface"]};
                 letter-spacing: -0.01em;
+                white-space: nowrap;
             }}
 
-            .nav-tab {{
+            .topbar-nav {{
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
+            }}
+
+            .topbar-nav a {{
                 font-size: 12px;
                 font-weight: 600;
                 letter-spacing: 0.05em;
                 color: {c["on_surface_variant"]};
                 text-decoration: none;
                 padding-bottom: 4px;
-                margin-right: 1.5rem;
-                cursor: default;
+                border-bottom: 2px solid transparent;
             }}
 
-            .nav-tab.active {{
+            .topbar-nav a:hover {{
                 color: {c["primary"]};
-                border-bottom: 2px solid {c["primary"]};
+            }}
+
+            .topbar-nav a.active {{
+                color: {c["primary"]};
+                border-bottom-color: {c["primary"]};
+            }}
+
+            .topbar-right {{
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
             }}
 
             .status-pill {{
@@ -312,6 +301,7 @@ def inject_styles():
                 font-size: 10px;
                 font-weight: 600;
                 letter-spacing: 0.05em;
+                white-space: nowrap;
             }}
 
             .pill-rag {{
@@ -332,6 +322,44 @@ def inject_styles():
                 object-fit: cover;
             }}
 
+            .content-scroll {{
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem 1.5rem 1rem;
+                width: 100%;
+                box-sizing: border-box;
+            }}
+
+            .content-inner {{
+                width: 100%;
+                max-width: 48rem;
+            }}
+
+            .chat-dock-marker {{
+                display: none;
+            }}
+
+            .element-container:has(.chat-dock-marker),
+            .element-container:has(.chat-dock-marker) ~ .element-container:has([data-testid="stTextArea"]),
+            .element-container:has(.chat-toolbar-block),
+            .element-container:has(.chat-footer-note) {{
+                max-width: 56rem;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                padding-left: 1.5rem !important;
+                padding-right: 1.5rem !important;
+                width: 100%;
+                box-sizing: border-box;
+            }}
+
+            .element-container:has(.chat-footer-note) {{
+                padding-bottom: 2rem !important;
+            }}
+
+            /* Hero */
             .hero-card {{
                 background: white;
                 border: 1px solid {c["outline_variant"]};
@@ -352,6 +380,7 @@ def inject_styles():
                 background: rgba(0, 61, 155, 0.05);
                 border-radius: 50%;
                 filter: blur(48px);
+                pointer-events: none;
             }}
 
             .hero-icon {{
@@ -383,6 +412,12 @@ def inject_styles():
                 margin: 0 0 2rem 0;
             }}
 
+            .action-grid {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+            }}
+
             .action-card {{
                 display: flex;
                 align-items: center;
@@ -391,7 +426,6 @@ def inject_styles():
                 background: {c["surface_container_low"]};
                 border: 1px solid {c["outline_variant"]};
                 border-radius: 0.5rem;
-                text-align: left;
             }}
 
             .action-card-icon {{
@@ -400,6 +434,7 @@ def inject_styles():
                 border-radius: 0.5rem;
                 border: 1px solid {c["outline_variant"]};
                 color: {c["on_surface_variant"]};
+                flex-shrink: 0;
             }}
 
             .action-card-title {{
@@ -416,13 +451,22 @@ def inject_styles():
                 margin: 0;
             }}
 
+            /* Suggestion cards */
+            .suggest-grid {{
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+            }}
+
             .suggestion-card {{
                 background: white;
                 border: 1px solid {c["outline_variant"]};
                 border-radius: 0.5rem;
                 padding: 1.5rem;
-                height: 100%;
-                transition: border-color 0.15s ease, box-shadow 0.15s ease;
+                cursor: pointer;
+                transition: border-color 0.15s, box-shadow 0.15s;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+                min-height: 130px;
             }}
 
             .suggestion-card:hover {{
@@ -430,43 +474,97 @@ def inject_styles():
                 box-shadow: 0 4px 12px rgba(9, 30, 66, 0.08);
             }}
 
+            .suggestion-head {{
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 0.5rem;
+            }}
+
+            .suggestion-icon {{
+                color: {c["primary"]};
+                font-size: 22px;
+            }}
+
+            .suggestion-arrow {{
+                color: {c["on_surface_variant"]};
+                font-size: 16px;
+            }}
+
             .suggestion-title {{
                 font-size: 12px;
                 font-weight: 600;
                 letter-spacing: 0.05em;
                 color: {c["on_surface"]};
-                margin: 0.5rem 0 0 0;
+                margin: 0;
             }}
 
             .suggestion-desc {{
                 font-size: 12px;
                 color: {c["on_surface_variant"]};
                 margin: 0.25rem 0 0 0;
+                line-height: 1.4;
             }}
 
-            .chat-footer-note {{
-                text-align: center;
-                font-size: 12px;
-                color: {c["on_surface_variant"]};
-                opacity: 0.6;
-                margin-top: 1rem;
+            .suggest-slot {{
+                height: 0;
+                overflow: visible;
+                margin: 0;
+                padding: 0;
             }}
 
-            .chat-input-wrap {{
+            .suggest-click {{
+                margin-top: -132px !important;
+                margin-bottom: 1rem !important;
+                position: relative;
+                z-index: 2;
+            }}
+
+            .suggest-click .stButton > button {{
+                height: 132px !important;
+                width: 100% !important;
+                opacity: 0 !important;
+                cursor: pointer !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }}
+
+            /* Chat input */
+            .element-container:has(.chat-dock-marker) ~ .element-container [data-testid="stTextArea"] {{
+                margin-bottom: 0 !important;
                 background: white;
                 border: 2px solid {c["outline_variant"]};
-                border-radius: 1rem;
-                overflow: hidden;
+                border-radius: 1rem 1rem 0 0;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.04);
             }}
 
-            .chat-input-toolbar {{
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0.75rem 1.5rem;
-                border-top: 1px solid {c["outline_variant"]};
+            .element-container:has(.chat-dock-marker) ~ .element-container [data-testid="stTextArea"] textarea {{
+                border: none !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                font-size: 14px !important;
+                min-height: 100px !important;
+                padding: 1.5rem !important;
+                resize: none !important;
+            }}
+
+            .chat-toolbar-block {{
                 background: rgba(237, 238, 240, 0.5);
+            }}
+
+            .element-container:has(.chat-toolbar-block) {{
+                background: white;
+                border: 2px solid {c["outline_variant"]};
+                border-top: 1px solid {c["outline_variant"]};
+                border-radius: 0 0 1rem 1rem;
+                margin-top: -1rem !important;
+                padding: 0.25rem 0.5rem 0.5rem !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            }}
+
+            .element-container:has(.chat-toolbar-block) [data-testid="stHorizontalBlock"] {{
+                align-items: center !important;
             }}
 
             .toolbar-left {{
@@ -478,106 +576,49 @@ def inject_styles():
                 font-size: 13px;
             }}
 
-            .toolbar-icon {{
-                color: {c["on_surface_variant"]};
-                cursor: default;
-            }}
-
             .toolbar-divider {{
                 width: 1px;
                 height: 24px;
                 background: {c["outline_variant"]};
             }}
 
-            .send-btn button {{
+            .send-btn .stButton > button {{
                 background: {c["primary"]} !important;
                 color: {c["on_primary"]} !important;
                 border-radius: 0.5rem !important;
                 font-size: 12px !important;
                 font-weight: 600 !important;
                 letter-spacing: 0.05em !important;
-                padding: 0.5rem 1.5rem !important;
+                padding: 0.5rem 1.25rem !important;
                 border: none !important;
+                white-space: nowrap !important;
             }}
 
-            .send-btn button:hover {{
+            .send-btn .stButton > button::after {{
+                content: "send";
+                font-family: 'Material Symbols Outlined';
+                font-size: 18px;
+                margin-left: 6px;
+                vertical-align: middle;
+            }}
+
+            .send-btn .stButton > button:hover {{
                 background: {c["primary_container"]} !important;
             }}
 
-            .suggest-btn button {{
-                background: white !important;
-                color: {c["on_surface"]} !important;
-                border: 1px solid {c["outline_variant"]} !important;
-                border-radius: 0.5rem !important;
-                padding: 1.5rem !important;
-                height: auto !important;
-                min-height: 140px !important;
-                text-align: left !important;
-                font-weight: 400 !important;
-                letter-spacing: normal !important;
-                white-space: normal !important;
-                line-height: 1.4 !important;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+            .send-btn .stButton {{
+                margin: 0 !important;
             }}
 
-            .suggest-btn button:hover {{
-                border-color: {c["primary_container"]} !important;
-                box-shadow: 0 4px 12px rgba(9, 30, 66, 0.08) !important;
-            }}
-
-            .suggest-btn button p {{
-                margin: 0;
-            }}
-
-            .suggest-btn .suggest-title {{
-                font-size: 12px;
-                font-weight: 600;
-                letter-spacing: 0.05em;
-                color: {c["on_surface"]};
-                margin-top: 0.5rem;
-            }}
-
-            .suggest-btn .suggest-desc {{
+            .chat-footer-note {{
+                text-align: center;
                 font-size: 12px;
                 color: {c["on_surface_variant"]};
-                margin-top: 0.25rem;
+                opacity: 0.6;
+                margin-top: 1rem;
             }}
 
-            .tab-btn button {{
-                background: transparent !important;
-                color: {c["on_surface_variant"]} !important;
-                border: none !important;
-                border-bottom: 2px solid transparent !important;
-                border-radius: 0 !important;
-                font-size: 12px !important;
-                font-weight: 600 !important;
-                letter-spacing: 0.05em !important;
-                padding: 0 0 4px 0 !important;
-                min-height: 0 !important;
-            }}
-
-            .tab-btn.active button {{
-                color: {c["primary"]} !important;
-                border-bottom: 2px solid {c["primary"]} !important;
-            }}
-
-            .tab-btn button:hover {{
-                color: {c["primary"]} !important;
-            }}
-
-            div[data-testid="stTextArea"] textarea {{
-                border: none !important;
-                box-shadow: none !important;
-                background: transparent !important;
-                font-size: 14px !important;
-                min-height: 100px !important;
-                padding: 1.5rem !important;
-            }}
-
-            div[data-testid="stTextArea"] {{
-                margin-bottom: 0 !important;
-            }}
-
+            /* Messages */
             .msg-user {{
                 background: {c["primary_fixed"]};
                 color: {c["on_primary_fixed_variant"]};
@@ -596,13 +637,14 @@ def inject_styles():
                 font-size: 14px;
             }}
 
+            /* Sidebar pieces */
             .kb-empty {{
                 padding: 2rem 1rem;
                 border: 2px dashed {c["outline_variant"]};
                 border-radius: 0.5rem;
                 text-align: center;
                 opacity: 0.6;
-                margin: 0.5rem 0 1.5rem 0;
+                margin: 0.25rem 0 1rem;
             }}
 
             .kb-doc-item {{
@@ -620,7 +662,7 @@ def inject_styles():
                 border: 1px solid {c["outline_variant"]};
                 border-radius: 0.5rem;
                 padding: 1rem;
-                margin: 1rem 0;
+                margin: 0.75rem 0;
             }}
 
             .stat-box {{
@@ -645,6 +687,11 @@ def inject_styles():
                 color: {c["primary"]};
                 margin: 0;
             }}
+
+            .sidebar-spacer {{
+                flex: 1;
+                min-height: 2rem;
+            }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -654,7 +701,7 @@ def inject_styles():
 def render_sidebar_brand():
     st.markdown(
         f"""
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:2rem;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;">
             <div style="background:{COLORS['primary']};padding:8px;border-radius:0.5rem;display:flex;">
                 <span class="material-symbols-outlined ms-fill" style="color:{COLORS['on_primary']};font-size:20px;">database</span>
             </div>
@@ -693,13 +740,13 @@ def render_sidebar_kb():
     else:
         for doc in st.session_state.documents:
             st.markdown(
-                f'<div class="kb-doc-item">📄 {doc["name"]}</div>',
+                f'<div class="kb-doc-item"><span class="material-symbols-outlined" style="font-size:14px;">description</span> {doc["name"]}</div>',
                 unsafe_allow_html=True,
             )
 
     st.markdown(
         f"""
-        <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid {COLORS['outline_variant']};">
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid {COLORS['outline_variant']};">
             <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;color:{COLORS['on_surface_variant']};">
                 <span class="material-symbols-outlined" style="font-size:20px;">monitoring</span>
                 <span style="font-size:14px;">Analytics</span>
@@ -743,26 +790,19 @@ def render_sidebar_status():
 
 
 def render_topbar():
-    left, tabs, right = st.columns([2, 2.5, 3])
-
-    with left:
-        st.markdown('<div class="topbar-title">RAG Assistant</div>', unsafe_allow_html=True)
-
-    with tabs:
-        tab_cols = st.columns(len(NAV_TABS))
-        for i, tab in enumerate(NAV_TABS):
-            with tab_cols[i]:
-                css_class = "tab-btn active" if st.session_state.active_tab == tab else "tab-btn"
-                st.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
-                if st.button(tab, key=f"tab_{tab}"):
-                    st.session_state.active_tab = tab
-                    st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
-
-    with right:
-        st.markdown(
-            f"""
-            <div style="display:flex;align-items:center;justify-content:flex-end;gap:0.75rem;flex-wrap:wrap;">
+    active = st.session_state.active_tab
+    nav_links = "".join(
+        f'<a class="{"active" if tab == active else ""}" href="?tab={tab}">{tab}</a>'
+        for tab in NAV_TABS
+    )
+    st.markdown(
+        f"""
+        <div class="topbar">
+            <div class="topbar-left">
+                <span class="topbar-title">RAG Assistant</span>
+                <nav class="topbar-nav">{nav_links}</nav>
+            </div>
+            <div class="topbar-right">
                 <div class="status-pill pill-rag">
                     <span class="material-symbols-outlined ms-fill" style="font-size:14px;">security</span>
                     RAG ENABLED
@@ -775,9 +815,10 @@ def render_topbar():
                 <span class="material-symbols-outlined" style="color:{COLORS['on_surface_variant']};font-size:22px;">notifications</span>
                 <img class="avatar" src="{PROFILE_IMG}" alt="User profile"/>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_hero():
@@ -793,61 +834,61 @@ def render_hero():
                 <p class="hero-subtitle">
                     Upload documents to create your enterprise knowledge assistant. Our RAG engine will index your content to provide grounded, traceable, and secure answers.
                 </p>
+                <div class="action-grid">
+                    <div class="action-card">
+                        <div class="action-card-icon">
+                            <span class="material-symbols-outlined">upload</span>
+                        </div>
+                        <div>
+                            <p class="action-card-title">Start Indexing</p>
+                            <p class="action-card-desc">PDF, DOCX, or TXT files</p>
+                        </div>
+                    </div>
+                    <div class="action-card">
+                        <div class="action-card-icon">
+                            <span class="material-symbols-outlined">menu_book</span>
+                        </div>
+                        <div>
+                            <p class="action-card-title">Explore Docs</p>
+                            <p class="action-card-desc">View knowledge base</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(
-            f"""
-            <div class="action-card">
-                <div class="action-card-icon">
-                    <span class="material-symbols-outlined">upload</span>
-                </div>
-                <div>
-                    <p class="action-card-title">Start Indexing</p>
-                    <p class="action-card-desc">PDF, DOCX, or TXT files</p>
-                </div>
+
+def _render_suggestion_card(icon: str, title: str, desc: str, idx: int):
+    st.markdown(
+        f"""
+        <div class="suggestion-card">
+            <div class="suggestion-head">
+                <span class="material-symbols-outlined suggestion-icon">{icon}</span>
+                <span class="material-symbols-outlined suggestion-arrow">north_east</span>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col2:
-        st.markdown(
-            f"""
-            <div class="action-card">
-                <div class="action-card-icon">
-                    <span class="material-symbols-outlined">menu_book</span>
-                </div>
-                <div>
-                    <p class="action-card-title">Explore Docs</p>
-                    <p class="action-card-desc">View knowledge base</p>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            <p class="suggestion-title">{title}</p>
+            <p class="suggestion-desc">{desc}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="suggest-click">', unsafe_allow_html=True)
+    if st.button(" ", key=f"suggest_{idx}"):
+        st.session_state.prompt_area = title
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_suggestions():
-    row1 = st.columns(2)
-    row2 = st.columns(2)
-    cols = [row1[0], row1[1], row2[0], row2[1]]
-
-    for i, suggestion in enumerate(SUGGESTIONS):
-        with cols[i]:
-            st.markdown('<div class="suggest-btn">', unsafe_allow_html=True)
-            label = (
-                f"📄 **{suggestion['title']}**\n\n"
-                f"{suggestion['desc']}"
-            )
-            if st.button(label, key=f"suggest_{i}", use_container_width=True):
-                st.session_state.prompt_area = suggestion["title"]
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+    row1 = st.columns(2, gap="medium")
+    row2 = st.columns(2, gap="medium")
+    slots = [row1[0], row1[1], row2[0], row2[1]]
+    for idx, (icon, title, desc) in enumerate(SUGGESTIONS):
+        with slots[idx]:
+            _render_suggestion_card(icon, title, desc, idx)
 
 
 def render_messages():
@@ -877,7 +918,6 @@ def handle_send(prompt: str):
 
 
 def render_chat_input():
-    st.markdown('<div class="chat-input-wrap">', unsafe_allow_html=True)
     prompt = st.text_area(
         "chat",
         placeholder="Ask anything about your enterprise knowledge...",
@@ -885,33 +925,30 @@ def render_chat_input():
         height=100,
         key="prompt_area",
     )
-
+    st.markdown('<div class="chat-toolbar-block">', unsafe_allow_html=True)
     tool_left, tool_right = st.columns([3, 1])
     with tool_left:
         st.markdown(
             f"""
-            <div class="chat-input-toolbar" style="border-top:1px solid {COLORS['outline_variant']};background:rgba(237,238,240,0.5);padding:0.75rem 1.5rem;">
-                <div class="toolbar-left">
-                    <span class="material-symbols-outlined toolbar-icon">attach_file</span>
-                    <span class="material-symbols-outlined toolbar-icon">mic</span>
-                    <div class="toolbar-divider"></div>
-                    <span>Markdown Supported</span>
-                </div>
+            <div class="toolbar-left">
+                <span class="material-symbols-outlined" style="font-size:20px;">attach_file</span>
+                <span class="material-symbols-outlined" style="font-size:20px;">mic</span>
+                <div class="toolbar-divider"></div>
+                <span>Markdown Supported</span>
             </div>
             """,
             unsafe_allow_html=True,
         )
     with tool_right:
-        st.markdown('<div class="send-btn" style="padding:0.5rem 1rem 0.5rem 0;">', unsafe_allow_html=True)
-        if st.button("Send Request ➤", use_container_width=True):
+        st.markdown('<div class="send-btn">', unsafe_allow_html=True)
+        if st.button("Send Request", key="send_btn"):
             handle_send(prompt)
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
-
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown(
-        '<p class="chat-footer-note">AI can make mistakes. Check important info. Secure & Private Enterprise Instance.</p>',
+        '<p class="chat-footer-note chat-footer-note">AI can make mistakes. Check important info. Secure & Private Enterprise Instance.</p>',
         unsafe_allow_html=True,
     )
 
@@ -926,10 +963,29 @@ def process_uploads(uploaded_files):
     st.session_state.show_welcome = len(st.session_state.messages) == 0
 
 
+def render_tab_placeholder(icon: str, title: str, desc: str):
+    st.markdown(
+        f"""
+        <div class="hero-card">
+            <div class="hero-icon">
+                <span class="material-symbols-outlined" style="font-size:32px;">{icon}</span>
+            </div>
+            <h2 class="hero-title">{title}</h2>
+            <p class="hero-subtitle">{desc}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 init_state()
+
+if "tab" in st.query_params and st.query_params["tab"] in NAV_TABS:
+    st.session_state.active_tab = st.query_params["tab"]
+
 inject_styles()
 
 with st.sidebar:
@@ -940,77 +996,62 @@ with st.sidebar:
         type=["pdf", "docx", "txt"],
         accept_multiple_files=True,
         label_visibility="collapsed",
-        help="Upload PDF, DOCX, or TXT files",
     )
     process_uploads(uploaded)
 
     render_sidebar_kb()
+
+    st.markdown('<div class="sidebar-spacer"></div>', unsafe_allow_html=True)
+
     render_sidebar_status()
 
-    st.markdown('<div class="settings-btn">', unsafe_allow_html=True)
-    st.button("⚙️  Settings", use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown('<div class="clear-btn">', unsafe_allow_html=True)
-    if st.button("🗑️  Clear Chat", use_container_width=True):
+    st.markdown(
+        f"""
+        <div class="sidebar-action">
+            <span class="material-symbols-outlined" style="font-size:20px;">settings</span>
+            Settings
+        </div>
+        <div class="sidebar-action danger" id="clear-chat-action">
+            <span class="material-symbols-outlined" style="font-size:20px;">delete_sweep</span>
+            Clear Chat
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="sidebar-clear-click">', unsafe_allow_html=True)
+    if st.button(" ", key="clear_btn"):
         st.session_state.messages = []
         st.session_state.prompt_area = ""
         st.session_state.show_welcome = True
         st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Main content
-st.markdown(
-    f'<div style="border-bottom:1px solid {COLORS["outline_variant"]};background:{COLORS["surface"]};padding:0 1.5rem;">',
-    unsafe_allow_html=True,
-)
 render_topbar()
-st.markdown("</div>", unsafe_allow_html=True)
 
-main_col, _ = st.columns([6, 0.3])
-with main_col:
-    st.markdown('<div style="max-width:48rem;margin:0 auto;padding:2rem 1.5rem 0;">', unsafe_allow_html=True)
+st.markdown('<div class="content-scroll"><div class="content-inner">', unsafe_allow_html=True)
 
-    tab = st.session_state.active_tab
+tab = st.session_state.active_tab
+if tab == "Conversations":
+    if st.session_state.messages:
+        render_messages()
+    elif st.session_state.show_welcome:
+        render_hero()
+        render_suggestions()
+elif tab == "Models":
+    render_tab_placeholder(
+        "model_training",
+        "Model Configuration",
+        "Select and configure the LLM powering your RAG pipeline. Enterprise models support temperature tuning, token limits, and grounding strength controls.",
+    )
+else:
+    render_tab_placeholder(
+        "shield_lock",
+        "Security & Compliance",
+        "Manage access controls, audit logs, and data retention policies. All queries are processed within your secure enterprise instance with end-to-end encryption.",
+    )
 
-    if tab == "Conversations":
-        if st.session_state.messages:
-            render_messages()
-        elif st.session_state.show_welcome:
-            render_hero()
-            render_suggestions()
-    elif tab == "Models":
-        st.markdown(
-            f"""
-            <div class="hero-card">
-                <div class="hero-icon"><span class="material-symbols-outlined" style="font-size:32px;">model_training</span></div>
-                <h2 class="hero-title">Model Configuration</h2>
-                <p class="hero-subtitle">
-                    Select and configure the LLM powering your RAG pipeline. Enterprise models support
-                    temperature tuning, token limits, and grounding strength controls.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            f"""
-            <div class="hero-card">
-                <div class="hero-icon"><span class="material-symbols-outlined" style="font-size:32px;">shield_lock</span></div>
-                <h2 class="hero-title">Security & Compliance</h2>
-                <p class="hero-subtitle">
-                    Manage access controls, audit logs, and data retention policies. All queries are
-                    processed within your secure enterprise instance with end-to-end encryption.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+st.markdown("</div></div>", unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    if tab == "Conversations":
-        st.markdown('<div style="max-width:56rem;margin:0 auto;padding:0 1.5rem 2rem;">', unsafe_allow_html=True)
-        render_chat_input()
-        st.markdown("</div>", unsafe_allow_html=True)
+if tab == "Conversations":
+    st.markdown('<div class="chat-dock-marker"></div>', unsafe_allow_html=True)
+    render_chat_input()

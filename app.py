@@ -19,7 +19,7 @@ from rag_backend import (
 from rag_backend import load_vectorstore as _load_vectorstore
 
 st.set_page_config(
-    page_title="Enterprise RAG Assistant",
+    page_title="AURA",
     page_icon="💬",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -31,6 +31,38 @@ PDF_ICON_SVG = (
     '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
     '<polyline points="14 2 14 8 20 8"/></svg>'
 )
+
+FOLLOW_UPS = [
+    "Explain this in simple terms",
+    "Summarize in 3 points",
+    "Show source sections",
+    "What are exceptions?",
+]
+
+THEMES = {
+    "light": {
+        "brand": "#185FA5",
+        "background_primary": "#ffffff",
+        "background_secondary": "#f8fafc",
+        "text_primary": "#0f172a",
+        "text_secondary": "#475569",
+        "text_tertiary": "#94a3b8",
+        "border_secondary": "#e2e8f0",
+        "border_tertiary": "#f1f5f9",
+        "metric_background": "#ffffff",
+    },
+    "dark": {
+        "brand": "#60a5fa",
+        "background_primary": "#101418",
+        "background_secondary": "#171d23",
+        "text_primary": "#f8fafc",
+        "text_secondary": "#cbd5e1",
+        "text_tertiary": "#94a3b8",
+        "border_secondary": "#2d3744",
+        "border_tertiary": "#222b36",
+        "metric_background": "#141a20",
+    },
+}
 
 
 @st.cache_resource
@@ -86,9 +118,10 @@ def init_state():
         "chunk_count": 0,
         "kb_indexed": False,
         "is_generating": False,
-        "ui_rag_mode": True,
-        "ui_memory_on": True,
+        "ui_dark_theme": False,
+        "chat_search": "",
         "pending_delete": None,
+        "pending_followup": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -150,6 +183,15 @@ def inject_styles():
                 font-family: 'Inter', sans-serif !important;
             }
 
+            html,
+            body,
+            .stApp,
+            [data-testid="stApp"],
+            [data-testid="stAppViewContainer"] {
+                background: var(--color-background-primary) !important;
+                color: var(--color-text-primary) !important;
+            }
+
             #MainMenu, footer {
                 visibility: hidden !important;
                 height: 0 !important;
@@ -160,8 +202,8 @@ def inject_styles():
             }
 
             header[data-testid="stHeader"] {
-                visibility: visible !important;
-                height: 3rem !important;
+                visibility: hidden !important;
+                height: 0 !important;
                 background: transparent !important;
             }
 
@@ -179,7 +221,7 @@ def inject_styles():
             [data-testid="stSidebar"] > div:first-child {
                 height: 100vh;
                 overflow-y: auto;
-                padding: 0.85rem 1rem 1rem !important;
+                padding: 0.05rem 1rem 1rem !important;
             }
 
             [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
@@ -231,11 +273,30 @@ def inject_styles():
             }
 
             [data-testid="stSidebar"] [data-testid="stFileUploader"] {
-                background: var(--color-background-primary);
+                background: var(--color-background-primary) !important;
                 border: 1px dashed var(--color-border-secondary);
                 border-radius: 10px;
                 padding: 0.55rem 0.65rem;
                 margin-bottom: 0.25rem;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] section,
+            [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+                background: var(--color-background-primary) !important;
+                border-color: var(--color-border-secondary) !important;
+                color: var(--color-text-primary) !important;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
+                background: var(--color-background-secondary) !important;
+                border: 0.5px solid var(--color-border-secondary) !important;
+                color: var(--color-text-primary) !important;
+            }
+
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] small,
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] span,
+            [data-testid="stSidebar"] [data-testid="stFileUploader"] p {
+                color: var(--color-text-secondary) !important;
             }
 
             [data-testid="stSidebar"] [data-testid="stAlert"] {
@@ -248,7 +309,7 @@ def inject_styles():
                 display: flex;
                 align-items: center;
                 gap: 0.65rem;
-                margin-bottom: 0.65rem;
+                margin: 0 0 0.35rem 0;
             }
 
             .sb-brand-icon {
@@ -327,37 +388,40 @@ def inject_styles():
                 background: #185FA5 !important;
             }
 
-            [data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.icon-btn-trash) > [data-testid="column"]:last-child {
-                flex: 0 0 1.75rem !important;
-                width: 1.75rem !important;
-                min-width: 1.75rem !important;
-                max-width: 1.75rem !important;
+            [data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.file-delete-btn) > [data-testid="column"]:last-child {
+                flex: 0 0 2.4rem !important;
+                width: 2.4rem !important;
+                min-width: 2.4rem !important;
+                max-width: 2.4rem !important;
             }
 
-            [data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.icon-btn-trash) > [data-testid="column"]:first-child {
+            [data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.file-delete-btn) > [data-testid="column"]:first-child {
                 min-width: 0 !important;
             }
 
-            [data-testid="stSidebar"] .icon-btn-trash .stButton {
-                width: 1.75rem !important;
+            [data-testid="stSidebar"] .file-delete-btn .stButton {
+                width: 2.4rem !important;
             }
 
-            [data-testid="stSidebar"] .icon-btn-trash .stButton > button {
-                min-width: 1.75rem !important;
-                width: 1.75rem !important;
-                min-height: 1.75rem !important;
-                height: 1.75rem !important;
+            [data-testid="stSidebar"] .file-delete-btn .stButton > button {
+                min-width: 2rem !important;
+                width: 2rem !important;
+                min-height: 2rem !important;
+                height: 2rem !important;
                 padding: 0 !important;
-                font-size: 0 !important;
-                color: transparent !important;
-                border: none !important;
-                background: transparent center/14px 14px no-repeat !important;
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3 6 5 6 21 6'/%3E%3Cpath d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/%3E%3C/svg%3E") !important;
+                font-size: 1rem !important;
+                color: var(--color-danger-file) !important;
+                border: 0.5px solid var(--color-border-secondary) !important;
+                background: var(--color-background-primary) !important;
                 box-shadow: none !important;
+                line-height: 1 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }
 
-            [data-testid="stSidebar"] .icon-btn-trash .stButton > button:hover {
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3 6 5 6 21 6'/%3E%3Cpath d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/%3E%3C/svg%3E") !important;
+            [data-testid="stSidebar"] .file-delete-btn .stButton > button:hover {
+                border-color: var(--color-danger-file) !important;
             }
 
             .sb-section-label {
@@ -623,24 +687,128 @@ def inject_styles():
                 line-height: 1.45;
             }
 
+            .analytics-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 0.45rem;
+            }
+
+            .metric-card {
+                background: var(--color-metric-background);
+                border: 0.5px solid var(--color-border-secondary);
+                border-radius: 8px;
+                padding: 0.6rem 0.7rem;
+            }
+
+            .metric-label {
+                font-size: 0.68rem;
+                color: var(--color-text-tertiary);
+                margin: 0 0 0.2rem 0;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                font-weight: 600;
+            }
+
+            .metric-value {
+                font-size: 1.05rem;
+                color: var(--color-text-primary);
+                margin: 0;
+                font-weight: 600;
+                line-height: 1.2;
+            }
+
+            .bookmark-card {
+                background: var(--color-background-primary);
+                border: 0.5px solid var(--color-border-secondary);
+                border-radius: 8px;
+                padding: 0.65rem 0.75rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .bookmark-preview {
+                color: var(--color-text-secondary);
+                font-size: 0.76rem;
+                line-height: 1.45;
+                margin: 0;
+            }
+
+            .typing-indicator {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.45rem;
+                color: var(--color-text-secondary);
+                background: var(--color-background-secondary);
+                border: 0.5px solid var(--color-border-secondary);
+                border-radius: 999px;
+                padding: 0.4rem 0.7rem;
+                font-size: 0.8rem;
+                margin: 0.35rem 0;
+            }
+
+            .typing-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: var(--color-brand);
+                animation: pulse 1s ease-in-out infinite;
+            }
+
+            @keyframes pulse {
+                0%, 100% { opacity: 0.35; transform: translateY(0); }
+                50% { opacity: 1; transform: translateY(-1px); }
+            }
+
+            .followup-label {
+                margin: 1rem 0 0.35rem 0;
+                color: var(--color-text-tertiary);
+                font-size: 0.75rem;
+                font-weight: 600;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+            }
+
             [data-testid="stSidebarCollapsedControl"],
             [data-testid="stSidebarCollapseButton"] {
                 display: none !important;
             }
 
             [data-testid="stAppViewContainer"] > .main {
-                background: var(--color-background-primary);
+                background: var(--color-background-primary) !important;
                 display: flex;
                 flex-direction: column;
                 min-height: 100vh;
             }
 
             .block-container {
+                background: var(--color-background-primary) !important;
+                color: var(--color-text-primary) !important;
                 padding-top: 1rem !important;
                 padding-bottom: 0 !important;
                 max-width: 48rem !important;
                 margin: 0 auto !important;
                 flex: 1;
+            }
+
+            [data-testid="stTextInput"] input {
+                background: var(--color-background-secondary) !important;
+                color: var(--color-text-primary) !important;
+                border: 0.5px solid var(--color-border-tertiary) !important;
+                box-shadow: none !important;
+            }
+
+            [data-testid="stTextInput"] input::placeholder,
+            [data-testid="stChatInput"] textarea::placeholder {
+                color: var(--color-text-tertiary) !important;
+                opacity: 1 !important;
+            }
+
+            [data-testid="stMarkdownContainer"],
+            [data-testid="stMarkdownContainer"] p,
+            [data-testid="stMarkdownContainer"] h1,
+            [data-testid="stMarkdownContainer"] h2,
+            [data-testid="stMarkdownContainer"] h3,
+            [data-testid="stChatMessageContent"] {
+                color: var(--color-text-primary) !important;
             }
 
             [data-testid="stBottomBlockContainer"],
@@ -656,19 +824,30 @@ def inject_styles():
                 background: transparent !important;
             }
 
-            [data-testid="stChatInput"] > div {
+            [data-testid="stChatInput"] > div,
+            [data-testid="stChatInput"] [data-baseweb="textarea"],
+            [data-testid="stChatInput"] [data-baseweb="textarea"] > div {
                 background: var(--color-background-secondary) !important;
                 border: 0.5px solid var(--color-border-tertiary) !important;
                 border-radius: 12px !important;
+            }
+
+            [data-testid="stChatInput"] > div {
                 padding: 0.15rem 0.35rem !important;
             }
 
             [data-testid="stChatInput"] textarea {
-                background: transparent !important;
+                background: var(--color-background-secondary) !important;
+                color: var(--color-text-primary) !important;
                 border: none !important;
                 box-shadow: none !important;
                 padding: 0.65rem 0.75rem !important;
                 font-size: 0.875rem !important;
+            }
+
+            [data-testid="stChatInput"] textarea:focus {
+                outline: none !important;
+                box-shadow: none !important;
             }
 
             [data-testid="stChatInput"] button {
@@ -694,6 +873,27 @@ def inject_styles():
         """,
         unsafe_allow_html=True,
     )
+    theme = THEMES["dark" if st.session_state.ui_dark_theme else "light"]
+    st.markdown(
+        f"""
+        <style>
+            :root {{
+                --color-brand: {theme["brand"]};
+                --color-danger-file: #A32D2D;
+                --color-background-primary: {theme["background_primary"]};
+                --color-background-secondary: {theme["background_secondary"]};
+                --color-text-primary: {theme["text_primary"]};
+                --color-text-secondary: {theme["text_secondary"]};
+                --color-text-tertiary: {theme["text_tertiary"]};
+                --color-border-secondary: {theme["border_secondary"]};
+                --color-border-tertiary: {theme["border_tertiary"]};
+                --color-metric-background: {theme["metric_background"]};
+                --sidebar-width: 22rem;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _format_bytes(size: int) -> str:
@@ -715,17 +915,45 @@ def render_sidebar_brand():
     st.markdown(
         """
         <div class="sb-brand">
-            <div class="sb-brand-icon">R</div>
+            <div class="sb-brand-icon">A</div>
             <div>
-                <p class="sb-brand-title">Enterprise RAG</p>
-                <p class="sb-brand-sub">Knowledge Assistant</p>
+                <p class="sb-brand-title">AURA</p>
+                <p class="sb-brand-sub">Intelligence That Understands You</p>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    st.toggle("RAG Mode", key="ui_rag_mode")
-    st.toggle("Memory On", key="ui_memory_on")
+    st.toggle("Dark Theme", key="ui_dark_theme")
+
+
+def current_mode_label() -> str:
+    return "RAG + Memory"
+
+
+def render_analytics_dashboard(session_id: str):
+    stats = memory.get_session_stats(session_id)
+    metrics = [
+        ("Total queries", stats["query_count"]),
+        ("Most used mode", stats["most_used_mode"]),
+        ("Uploaded docs", doc_count()),
+    ]
+    cards = "".join(
+        f"""
+        <div class="metric-card">
+            <p class="metric-label">{html.escape(label)}</p>
+            <p class="metric-value">{html.escape(str(value))}</p>
+        </div>
+        """
+        for label, value in metrics
+    )
+    st.markdown(
+        f"""
+        <p class="sb-section-label sb-section-divider">Query Analytics</p>
+        <div class="analytics-grid">{cards}</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_documents_list():
@@ -778,39 +1006,76 @@ def render_documents_list():
                 unsafe_allow_html=True,
             )
         with trash_col:
-            st.markdown('<div class="icon-btn-trash">', unsafe_allow_html=True)
-            if st.button(" ", key=f"del_{fname}", help=f"Remove {fname}"):
+            st.markdown('<div class="file-delete-btn">', unsafe_allow_html=True)
+            if st.button("🗑", key=f"del_{fname}", help=f"Remove {fname}"):
                 st.session_state.pending_delete = fname
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
 
-def render_source_citations(sources: list[dict]):
+def render_source_citations(sources: list[dict], *, use_expanders: bool = True):
     if not sources:
         return
 
-    with st.expander(
-        f"📎 {len(sources)} source passage{'s' if len(sources) != 1 else ''} from your documents",
-        expanded=False,
-    ):
-        for i, source in enumerate(sources, start=1):
-            filename = html.escape(Path(source.get("source", "unknown")).name)
-            page = source.get("page")
-            page_label = f" · Page {page + 1}" if page is not None else ""
-            excerpt = html.escape(source.get("excerpt", ""))
+    st.caption(f"Citation cards · {len(sources)} source passage{'s' if len(sources) != 1 else ''}")
+    for i, source in enumerate(sources, start=1):
+        filename = Path(source.get("source", "unknown")).name
+        page = source.get("page")
+        page_label = f"Page {page + 1}" if page is not None else "Document excerpt"
+        excerpt = html.escape(source.get("excerpt", ""))
+        card_html = f"""
+            <div class="source-card">
+                <p class="source-card-title">📄 {html.escape(filename)}<br>{html.escape(page_label)}</p>
+                <p class="source-card-excerpt">"{excerpt}"</p>
+            </div>
+            """
+        if not use_expanders:
             st.markdown(
-                f"""
-                <div class="source-card">
-                    <p class="source-card-title">[{i}] {filename}{page_label}</p>
-                    <p class="source-card-excerpt">"{excerpt}"</p>
-                </div>
-                """,
+                card_html,
                 unsafe_allow_html=True,
             )
+            continue
+
+        with st.expander(f"[{i}] {filename} · {page_label}", expanded=False):
+            st.markdown(card_html, unsafe_allow_html=True)
 
 
-def render_messages():
-    for msg in st.session_state.messages:
+def render_bookmark_button(msg: dict, idx: int):
+    if st.button("Bookmark response", key=f"bookmark_msg_{idx}"):
+        inserted = memory.add_bookmark(
+            st.session_state.session_id,
+            msg["content"],
+            sources=msg.get("sources", []),
+        )
+        if inserted:
+            st.toast("Response bookmarked.")
+        else:
+            st.toast("Response is already bookmarked.")
+        st.rerun()
+
+
+def render_followup_suggestions():
+    st.markdown('<p class="followup-label">Suggested Follow-ups</p>', unsafe_allow_html=True)
+    cols = st.columns(2)
+    for idx, suggestion in enumerate(FOLLOW_UPS):
+        with cols[idx % 2]:
+            if st.button(f"→ {suggestion}", key=f"followup_{idx}", use_container_width=True):
+                st.session_state.pending_followup = suggestion
+                st.rerun()
+
+
+def message_matches_search(msg: dict, search: str) -> bool:
+    if not search:
+        return True
+    lower = search.lower()
+    if lower in msg.get("content", "").lower():
+        return True
+    return any(lower in source.get("excerpt", "").lower() for source in msg.get("sources", []))
+
+
+def render_messages(messages: list[dict] | None = None, *, show_actions: bool = True):
+    visible = messages if messages is not None else st.session_state.messages
+    for idx, msg in enumerate(visible):
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
             if msg["role"] == "assistant" and msg.get("grounded") and msg.get("sources"):
@@ -819,6 +1084,11 @@ def render_messages():
                     unsafe_allow_html=True,
                 )
                 render_source_citations(msg["sources"])
+            if show_actions and msg["role"] == "assistant" and msg.get("content"):
+                render_bookmark_button(msg, idx)
+
+    if show_actions and visible and visible[-1]["role"] == "assistant":
+        render_followup_suggestions()
 
 
 def render_welcome_empty():
@@ -893,6 +1163,39 @@ def render_history_panel(session_id: str):
     st.markdown(f'<div class="history-panel">{items_html}</div>', unsafe_allow_html=True)
 
 
+def render_bookmarks_section(session_id: str):
+    bookmarks = memory.get_bookmarks(session_id)
+    st.markdown(
+        f'<p class="sb-section-label sb-section-divider">Bookmarks · {len(bookmarks)}</p>',
+        unsafe_allow_html=True,
+    )
+
+    if not bookmarks:
+        st.markdown(
+            '<div class="sb-empty">No saved responses yet.<br>Bookmark an answer to keep it here.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    for item in bookmarks:
+        preview = item["content"][:170] + ("…" if len(item["content"]) > 170 else "")
+        st.markdown(
+            f"""
+            <div class="bookmark-card">
+                <p class="bookmark-preview">{html.escape(preview)}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.expander("View saved response", expanded=False):
+            st.markdown(item["content"])
+            if item.get("sources"):
+                render_source_citations(item["sources"], use_expanders=False)
+            if st.button("Remove bookmark", key=f"remove_bookmark_{item['id']}"):
+                memory.remove_bookmark(item["id"])
+                st.rerun()
+
+
 def generate_pending_answer():
     """Stream answer once, persist full message + sources to SQLite."""
     query = st.session_state.messages[-1]["content"]
@@ -902,7 +1205,19 @@ def generate_pending_answer():
     result = {"content": "", "sources": [], "grounded": False}
 
     with st.chat_message("assistant"):
+        thinking = st.empty()
+        thinking.markdown(
+            """
+            <div class="typing-indicator">
+                <span class="typing-dot"></span>
+                AI is thinking...
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
         if not kb_active():
+            thinking.empty()
             result["content"] = (
                 "Upload documents in the sidebar, then click **Build Knowledge Base** "
                 "before asking questions."
@@ -929,6 +1244,7 @@ def generate_pending_answer():
                                 short = rq[:90] + "…" if len(rq) > 90 else rq
                                 st.caption(f"🔍 Memory-aware search: _{short}_")
                             if not context_chunks:
+                                thinking.empty()
                                 result = {
                                     "content": "I could not find relevant passages in your uploaded documents for this question.",
                                     "sources": [],
@@ -937,20 +1253,24 @@ def generate_pending_answer():
                                 yield result["content"]
                                 return
                         elif event == "token":
+                            thinking.empty()
                             result["content"] += payload
                             yield payload
                         elif event == "complete":
+                            thinking.empty()
                             result = {
                                 "content": payload["answer"],
                                 "sources": payload.get("sources", []),
                                 "grounded": payload.get("grounded", False),
                             }
                         elif event == "error":
+                            thinking.empty()
                             result = {"content": payload["answer"], "sources": [], "grounded": False}
                             yield payload["answer"]
                             return
 
                 streamed = st.write_stream(token_generator())
+                thinking.empty()
                 if streamed and not result["content"]:
                     result["content"] = streamed if isinstance(streamed, str) else "".join(streamed)
 
@@ -962,9 +1282,11 @@ def generate_pending_answer():
                     render_source_citations(result["sources"])
 
             except ValueError as exc:
+                thinking.empty()
                 result = {"content": str(exc), "sources": [], "grounded": False}
                 st.error(str(exc))
             except Exception as exc:
+                thinking.empty()
                 result = {"content": f"Failed to generate answer: {exc}", "sources": [], "grounded": False}
                 st.error(result["content"])
 
@@ -1066,6 +1388,8 @@ inject_styles()
 with st.sidebar:
     render_sidebar_brand()
 
+    render_analytics_dashboard(st.session_state.session_id)
+
     render_documents_list()
 
     st.markdown('<p class="sb-section-label sb-section-divider">Upload</p>', unsafe_allow_html=True)
@@ -1094,6 +1418,7 @@ with st.sidebar:
         del st.session_state.build_kb_message
 
     render_history_panel(st.session_state.session_id)
+    render_bookmarks_section(st.session_state.session_id)
 
     st.markdown('<hr class="sb-sidebar-footer">', unsafe_allow_html=True)
     if st.button("Clear conversation", use_container_width=True, type="secondary"):
@@ -1103,8 +1428,21 @@ with st.sidebar:
         st.session_state.is_generating = False
         st.rerun()
 
+search = st.text_input(
+    "Search chats",
+    placeholder="Search this conversation...",
+    key="chat_search",
+    label_visibility="collapsed",
+)
+
 if st.session_state.messages:
-    render_messages()
+    visible_messages = [
+        msg for msg in st.session_state.messages if message_matches_search(msg, search.strip())
+    ]
+    if search.strip() and not visible_messages:
+        st.info("No records found.")
+    else:
+        render_messages(visible_messages, show_actions=not bool(search.strip()))
 elif st.session_state.show_welcome:
     render_welcome_empty()
 
@@ -1112,9 +1450,14 @@ if st.session_state.is_generating:
     generate_pending_answer()
     st.rerun()
 
-if prompt := st.chat_input("Ask anything about your documents…", disabled=st.session_state.is_generating):
+followup_prompt = st.session_state.pop("pending_followup", None)
+typed_prompt = st.chat_input("Ask anything about your documents…", disabled=st.session_state.is_generating)
+prompt = followup_prompt or typed_prompt
+
+if prompt and not st.session_state.is_generating:
     st.session_state.messages.append({"role": "user", "content": prompt})
     memory.add_message(st.session_state.session_id, "user", prompt)
+    memory.add_query_event(st.session_state.session_id, prompt, current_mode_label())
     st.session_state.show_welcome = False
     st.session_state.is_generating = True
     st.rerun()

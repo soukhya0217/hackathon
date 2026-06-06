@@ -1,88 +1,272 @@
-# Enterprise RAG Assistant
+# Project Name : Enterprise RAG Assistant
 
-A Streamlit chat app that lets you upload documents (PDF, DOCX, TXT), build a local semantic search index, and ask questions grounded in your files.
+# Problem Statement : Intelligent Conversational AI Agent
 
-## Features
+# Team No : 31
 
-- Upload and manage documents from the sidebar
-- FAISS vector search with BGE embeddings (runs locally)
-- Grounded answers via Groq Llama 3.1 with source citations
-- Incremental indexing when you add new files (full rebuild on edits/removals)
+# College Name : CHRIST (Deemed to be University)
 
-## Requirements
+### Problem Statement
 
-- Python 3.9+
-- A [Groq API key](https://console.groq.com/) for answer generation
-- ~500 MB disk for embedding model cache (first run downloads from Hugging Face)
-- Recommended: 4 GB+ RAM
+Organizations often store critical information across PDFs, policy documents, onboarding guides, project reports, and knowledge repositories. While this information exists, employees frequently struggle to locate the right answer quickly.
 
-## Setup
+Traditional chatbots often fail because they:
+
+* Cannot access organization-specific documents
+* Lack conversational context
+* Provide answers without references or traceability
+* Require users to manually search through lengthy documents
+
+There is a need for an intelligent conversational system that can:
+
+* Retrieve information from enterprise documents
+* Answer questions using document context
+* Support follow-up questions naturally
+* Provide transparent source citations
+
+---
+
+### Proposed Solution
+
+**Enterprise RAG Assistant** is a Retrieval-Augmented Generation (RAG) powered conversational AI system that allows users to upload enterprise documents and interact with them through natural language.
+
+The platform enables:
+
+* Uploading PDF, DOCX, and TXT documents
+* Building a semantic knowledge base from uploaded files
+* Asking questions in natural language
+* Retrieving relevant document sections automatically
+* Generating grounded responses using retrieved context
+* Supporting follow-up conversations through session memory
+* Providing source citations for transparency and trust
+
+The result: users can find information from enterprise documents instantly without manually searching through hundreds of pages.
+
+---
+
+## Innovation & Creativity
+
+Enterprise RAG Assistant goes beyond a traditional chatbot by combining semantic retrieval with conversational memory.
+
+Key innovations include:
+
+* **Semantic Search:** Questions are matched based on meaning rather than exact keywords
+* **Memory-Aware Retrieval:** Follow-up questions such as “What are their responsibilities?” are understood using previous conversation context
+* **Grounded Responses:** Answers are generated only from retrieved document content, reducing hallucinations
+* **Source Citations:** Every answer can be traced back to the document and page where the information originated
+* **Incremental Indexing:** New documents can be added without rebuilding the entire knowledge base
+
+This creates a more reliable and enterprise-friendly AI assistant compared to generic chatbots.
+
+---
+
+## Technical Complexity & Stack
+
+Enterprise RAG Assistant combines document processing, semantic search, conversational memory, and large language models into a single workflow.
+
+### Frontend
+
+* Streamlit
+* Custom responsive UI
+* Real-time chat interface
+* Source citation display
+* Session-aware conversation history
+
+### Backend
+
+* Python
+* LangChain
+* SQLite Memory Store
+* FAISS Vector Database
+* Groq LLM API
+
+### Document Processing
+
+* PyPDFLoader
+* Docx2txtLoader
+* TextLoader
+* RecursiveCharacterTextSplitter
+
+### Embeddings & Retrieval
+
+* BAAI/bge-small-en-v1.5
+* FAISS Similarity Search
+* Top-K Context Retrieval
+* Metadata Preservation
+
+### AI Generation
+
+* Llama 3.1 8B Instant (Groq)
+* Retrieval-Augmented Generation
+* Grounded Prompting
+* Citation-Based Responses
+
+---
+
+## System Architecture
+
+```text
+Document Upload
+        ↓
+Document Parsing
+        ↓
+Text Chunking
+        ↓
+Embedding Generation
+        ↓
+FAISS Vector Database
+        ↓
+User Question
+        ↓
+Semantic Retrieval
+        ↓
+Conversation Memory
+        ↓
+Llama 3.1 (Groq)
+        ↓
+Answer + Citations
+```
+
+---
+
+## Usability & Impact
+
+Enterprise RAG Assistant is designed to be simple, fast, and trustworthy.
+
+Features include:
+
+* Minimal setup and onboarding
+* Natural language document search
+* Transparent source citations
+* Session-based conversational memory
+* Support for multiple enterprise document formats
+
+### Impact Potential
+
+* Reduces time spent searching documents
+* Improves knowledge accessibility across teams
+* Enables faster onboarding and training
+* Reduces dependency on manual documentation lookup
+* Provides verifiable and traceable AI-generated responses
+
+The platform transforms static enterprise documents into an interactive knowledge assistant.
+
+---
+
+## Key Features
+
+### Document Management
+
+* Upload PDF, DOCX, and TXT files
+* Build searchable knowledge bases
+* Incremental indexing support
+* Document deletion and rebuild workflows
+
+### Retrieval-Augmented Generation
+
+* Semantic document retrieval
+* Context-aware answer generation
+* Source-grounded responses
+* Hallucination reduction
+
+### Conversational Memory
+
+* Session-based memory
+* Follow-up question understanding
+* Context retention across conversations
+* SQLite-backed persistence
+
+### Source Transparency
+
+* File-level citations
+* Page-level references
+* Source preview snippets
+* Expandable citation cards
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+
+* Python 3.9+
+* Groq API Key
+
+---
+
+### Installation
 
 ```bash
-# Clone and enter the project
-cd hackathon
+git clone <repository_url>
 
-# Create a virtual environment
-python3 -m venv .venv
+cd enterprise-rag-assistant
+
+python -m venv .venv
+
 source .venv/bin/activate
+```
 
-# Install dependencies
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
 
-# Configure API key
-cp .env.example .env
-# Edit .env and set GROQ_API_KEY=...
+---
 
-# Run the app
+### Environment Variables
+
+Create a `.env` file:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+```
+
+---
+
+### Run Application
+
+```bash
 streamlit run app.py
 ```
 
-Open http://localhost:8501 in your browser.
+---
 
-## Usage
+## Project Structure
 
-1. **Upload** one or more PDF, DOCX, or TXT files in the sidebar
-2. Click **Build Knowledge Base** (first build may take a minute while the embedding model downloads)
-3. **Ask questions** in the chat — answers cite passages from your documents
+```text
+enterprise-rag-assistant/
 
-If you add new files later, click **Build Knowledge Base** again; only new files are embedded incrementally. Removing or replacing a file triggers a full re-index.
-
-**Follow-up questions** are supported — the assistant remembers prior messages in the session (SQLite) and uses them when searching documents and generating answers. Refresh the page without losing chat: the session ID stays in the URL (`?session=...`).
-
-See **[DEMO.md](DEMO.md)** for a judge-ready demo script.
-
-## Hackathon scope
-
-This project implements **RAG mode + conversational memory** per sprint guidance. General Chat and Web Search modes are intentionally omitted.
-
-## Project structure
-
-```
-app.py              Streamlit UI
-rag_backend.py      RAG pipeline (parse → chunk → embed → retrieve → generate)
-memory.py           SQLite short-term chat memory
-data/uploads/       Saved uploaded files (gitignored)
-data/vectorstore/   FAISS index + manifest (gitignored)
-docs/               Design mockup (reference only)
-tests/              Unit tests
+├── app.py
+├── rag_backend.py
+├── memory.py
+├── requirements.txt
+├── README.md
+├── .env.example
+│
+├── data/
+│   ├── uploads/
+│   ├── vectorstore/
+│   └── chat_memory.db
+│
+├── docs/
+│
+└── tests/
 ```
 
-## Environment variables
+---
 
-| Variable       | Required | Description                    |
-|----------------|----------|--------------------------------|
-| `GROQ_API_KEY` | Yes      | Groq API key for LLM answers   |
+## Future Improvements
 
-## Running tests
+* General Chat Mode
+* Real-Time Web Search Integration
+* LangGraph Tool Routing
+* Multi-User Authentication
+* OCR Support for Scanned PDFs
+* Cloud Deployment
+* Role-Based Access Control
+* Hybrid Search (Keyword + Semantic)
 
-```bash
-pytest tests/ -q
-```
+---
 
-## Troubleshooting
-
-**First indexing is slow** — The BGE embedding model (~133 MB) downloads once from Hugging Face. Subsequent runs use the cached model.
-
-**`GROQ_API_KEY is required`** — Copy `.env.example` to `.env` and add your key.
-
-**No matching passages** — Try rephrasing your question, or rebuild the knowledge base after uploading new files.
+*Built to transform enterprise documents into an intelligent, searchable, and conversational knowledge system.*

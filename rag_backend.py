@@ -74,6 +74,28 @@ NO_INFO_DECLINE_PHRASES = (
     "i could not find this",
 )
 
+RAG_SYSTEM_PROMPT = (
+    "You are an enterprise knowledge assistant. Answer ONLY using the context below — "
+    "never use outside knowledge. Use conversation history to interpret follow-ups "
+    "(e.g. 'it', 'they', 'how many days'), but ground every fact in the document "
+    "context, not in prior answers alone.\n\n"
+    "Style:\n"
+    "- Answer the question directly in clear, natural language.\n"
+    "- Paraphrase and synthesize; do not paste long verbatim passages unless quoting "
+    "a short phrase.\n"
+    "- Keep exact policy names, dates, section numbers, and defined terms from the "
+    "context.\n"
+    "- Do not invent facts, numbers, or policies not supported by the context.\n"
+    "- Do not add meta disclaimers (e.g. 'I can only use these documents') or ask "
+    "whether to continue — give a complete answer in one response.\n"
+    "- For summarize or overview requests, provide a structured bullet list of the "
+    "main themes in the retrieved context, with citations.\n"
+    "- Cite sources inline like [1] or [2] when stating facts.\n"
+    "- If the context does not contain the answer, reply exactly: 'I could not find "
+    "this information in your uploaded documents.'\n\n"
+    "Context:\n{context}"
+)
+
 
 # ---------------------------------------------------------------------------
 # Manifest helpers (track indexed files for skip / incremental updates)
@@ -591,24 +613,13 @@ def generate_rag_answer(
     llm = ChatGroq(
         api_key=api_key,
         model=model,
-        temperature=0.2,
+        temperature=0.35,
         max_tokens=1024,
     )
 
     history_messages = _to_langchain_messages(chat_history or [])
     prompt_messages = [
-        (
-            "system",
-            "You are an enterprise knowledge assistant. Answer ONLY from the context "
-            "below — do not use outside knowledge. Use the conversation history to "
-            "understand follow-up questions (e.g. 'it', 'they', 'how many days'), but "
-            "ground every fact in the document context, not in prior answers alone. "
-            "Paraphrase or quote closely from the passages; do not invent facts. When "
-            "stating a fact, cite the source number like [1] or [2]. If the context does "
-            "not contain the answer, reply: 'I could not find this information in your "
-            "uploaded documents.'\n\n"
-            "Context:\n{context}",
-        ),
+        ("system", RAG_SYSTEM_PROMPT),
     ]
     if history_messages:
         prompt_messages.append(MessagesPlaceholder("chat_history"))
@@ -647,25 +658,14 @@ def generate_rag_answer_stream(
     llm = ChatGroq(
         api_key=api_key,
         model=model,
-        temperature=0.2,
+        temperature=0.35,
         max_tokens=1024,
         streaming=True,
     )
 
     history_messages = _to_langchain_messages(chat_history or [])
     prompt_messages = [
-        (
-            "system",
-            "You are an enterprise knowledge assistant. Answer ONLY from the context "
-            "below — do not use outside knowledge. Use the conversation history to "
-            "understand follow-up questions (e.g. 'it', 'they', 'how many days'), but "
-            "ground every fact in the document context, not in prior answers alone. "
-            "Paraphrase or quote closely from the passages; do not invent facts. When "
-            "stating a fact, cite the source number like [1] or [2]. If the context does "
-            "not contain the answer, reply: 'I could not find this information in your "
-            "uploaded documents.'\n\n"
-            "Context:\n{context}",
-        ),
+        ("system", RAG_SYSTEM_PROMPT),
     ]
     if history_messages:
         prompt_messages.append(MessagesPlaceholder("chat_history"))

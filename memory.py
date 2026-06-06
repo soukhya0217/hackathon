@@ -241,6 +241,7 @@ def clear_session(session_id: str) -> None:
     with _connect() as conn:
         conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM query_events WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM bookmarks WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
         conn.commit()
 

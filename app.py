@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import html
 from pathlib import Path
 
@@ -31,13 +33,6 @@ PDF_ICON_SVG = (
     '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
     '<polyline points="14 2 14 8 20 8"/></svg>'
 )
-
-FOLLOW_UPS = [
-    "Explain this in simple terms",
-    "Summarize in 3 points",
-    "Show source sections",
-    "What are exceptions?",
-]
 
 THEMES = {
     "light": {
@@ -121,7 +116,6 @@ def init_state():
         "ui_dark_theme": False,
         "chat_search": "",
         "pending_delete": None,
-        "pending_followup": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -388,40 +382,107 @@ def inject_styles():
                 background: #185FA5 !important;
             }
 
+            [data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.file-delete-btn) {
+                align-items: center !important;
+                margin-bottom: 0.35rem !important;
+            }
+
             [data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.file-delete-btn) > [data-testid="column"]:last-child {
                 flex: 0 0 2.4rem !important;
                 width: 2.4rem !important;
                 min-width: 2.4rem !important;
                 max-width: 2.4rem !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
             }
 
             [data-testid="stSidebar"] [data-testid="stHorizontalBlock"]:has(.file-delete-btn) > [data-testid="column"]:first-child {
                 min-width: 0 !important;
             }
 
+            [data-testid="stSidebar"] .file-delete-btn {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                height: 100% !important;
+            }
+
+            [data-testid="stSidebar"] .file-delete-btn [data-testid="stVerticalBlock"] {
+                width: 100% !important;
+                align-items: center !important;
+            }
+
             [data-testid="stSidebar"] .file-delete-btn .stButton {
-                width: 2.4rem !important;
+                width: 2rem !important;
+                margin: 0 auto !important;
             }
 
             [data-testid="stSidebar"] .file-delete-btn .stButton > button {
                 min-width: 2rem !important;
                 width: 2rem !important;
+                max-width: 2rem !important;
                 min-height: 2rem !important;
                 height: 2rem !important;
+                max-height: 2rem !important;
                 padding: 0 !important;
+                margin: 0 !important;
                 font-size: 1rem !important;
-                color: var(--color-danger-file) !important;
+                font-weight: 500 !important;
+                line-height: 1 !important;
+                color: var(--color-text-tertiary) !important;
                 border: 0.5px solid var(--color-border-secondary) !important;
+                border-radius: 8px !important;
                 background: var(--color-background-primary) !important;
                 box-shadow: none !important;
-                line-height: 1 !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
+                text-align: center !important;
+            }
+
+            [data-testid="stSidebar"] .file-delete-btn .stButton > button > div {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            [data-testid="stSidebar"] .file-delete-btn .stButton > button p {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                line-height: 1 !important;
+                font-size: 1rem !important;
+                color: var(--color-text-tertiary) !important;
+                transform: translateY(-0.5px);
             }
 
             [data-testid="stSidebar"] .file-delete-btn .stButton > button:hover {
                 border-color: var(--color-danger-file) !important;
+                color: var(--color-danger-file) !important;
+                background: var(--color-background-primary) !important;
+            }
+
+            [data-testid="stSidebar"] .file-delete-btn .stButton > button:hover p {
+                color: var(--color-danger-file) !important;
+            }
+
+            .sb-chat-actions {
+                display: flex;
+                gap: 0.5rem;
+                margin-top: 0.25rem;
+            }
+
+            .sb-chat-actions [data-testid="column"] {
+                flex: 1 !important;
             }
 
             .sb-section-label {
@@ -758,15 +819,6 @@ def inject_styles():
                 50% { opacity: 1; transform: translateY(-1px); }
             }
 
-            .followup-label {
-                margin: 1rem 0 0.35rem 0;
-                color: var(--color-text-tertiary);
-                font-size: 0.75rem;
-                font-weight: 600;
-                letter-spacing: 0.06em;
-                text-transform: uppercase;
-            }
-
             [data-testid="stSidebarCollapsedControl"],
             [data-testid="stSidebarCollapseButton"] {
                 display: none !important;
@@ -1007,7 +1059,7 @@ def render_documents_list():
             )
         with trash_col:
             st.markdown('<div class="file-delete-btn">', unsafe_allow_html=True)
-            if st.button("🗑", key=f"del_{fname}", help=f"Remove {fname}"):
+            if st.button("×", key=f"del_{fname}", help=f"Remove {fname}"):
                 st.session_state.pending_delete = fname
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
@@ -1054,16 +1106,6 @@ def render_bookmark_button(msg: dict, idx: int):
         st.rerun()
 
 
-def render_followup_suggestions():
-    st.markdown('<p class="followup-label">Suggested Follow-ups</p>', unsafe_allow_html=True)
-    cols = st.columns(2)
-    for idx, suggestion in enumerate(FOLLOW_UPS):
-        with cols[idx % 2]:
-            if st.button(f"→ {suggestion}", key=f"followup_{idx}", use_container_width=True):
-                st.session_state.pending_followup = suggestion
-                st.rerun()
-
-
 def message_matches_search(msg: dict, search: str) -> bool:
     if not search:
         return True
@@ -1086,9 +1128,6 @@ def render_messages(messages: list[dict] | None = None, *, show_actions: bool = 
                 render_source_citations(msg["sources"])
             if show_actions and msg["role"] == "assistant" and msg.get("content"):
                 render_bookmark_button(msg, idx)
-
-    if show_actions and visible and visible[-1]["role"] == "assistant":
-        render_followup_suggestions()
 
 
 def render_welcome_empty():
@@ -1379,6 +1418,29 @@ def remove_document(filename: str):
         st.session_state.upload_notice = f"Removed **{filename}** — rebuild the knowledge base to update search."
 
 
+def clear_current_chat():
+    session_id = st.session_state.session_id
+    memory.clear_session(session_id)
+    memory.ensure_session(session_id)
+    st.session_state.messages = []
+    st.session_state.show_welcome = True
+    st.session_state.is_generating = False
+    st.session_state.chat_search = ""
+    st.rerun()
+
+
+def start_new_chat():
+    sid = memory.new_session_id()
+    st.session_state.session_id = sid
+    st.query_params["session"] = sid
+    memory.ensure_session(sid)
+    st.session_state.messages = []
+    st.session_state.show_welcome = True
+    st.session_state.is_generating = False
+    st.session_state.chat_search = ""
+    st.rerun()
+
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
@@ -1421,12 +1483,14 @@ with st.sidebar:
     render_bookmarks_section(st.session_state.session_id)
 
     st.markdown('<hr class="sb-sidebar-footer">', unsafe_allow_html=True)
-    if st.button("Clear conversation", use_container_width=True, type="secondary"):
-        memory.clear_session(st.session_state.session_id)
-        st.session_state.messages = []
-        st.session_state.show_welcome = True
-        st.session_state.is_generating = False
-        st.rerun()
+    st.markdown('<p class="sb-section-label">Chat</p>', unsafe_allow_html=True)
+    new_chat_col, clear_chat_col = st.columns(2)
+    with new_chat_col:
+        if st.button("New chat", key="new_chat", use_container_width=True, type="primary"):
+            start_new_chat()
+    with clear_chat_col:
+        if st.button("Clear chat", key="clear_chat", use_container_width=True, type="secondary"):
+            clear_current_chat()
 
 search = st.text_input(
     "Search chats",
@@ -1450,11 +1514,7 @@ if st.session_state.is_generating:
     generate_pending_answer()
     st.rerun()
 
-followup_prompt = st.session_state.pop("pending_followup", None)
-typed_prompt = st.chat_input("Ask anything about your documents…", disabled=st.session_state.is_generating)
-prompt = followup_prompt or typed_prompt
-
-if prompt and not st.session_state.is_generating:
+if prompt := st.chat_input("Ask anything about your documents…", disabled=st.session_state.is_generating):
     st.session_state.messages.append({"role": "user", "content": prompt})
     memory.add_message(st.session_state.session_id, "user", prompt)
     memory.add_query_event(st.session_state.session_id, prompt, current_mode_label())
